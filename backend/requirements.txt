@@ -1,0 +1,19 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+pydantic-settings==2.5.2
+python-dotenv==1.0.1
+httpx==0.27.2
+
+# ML stack
+transformers==4.45.2
+torch==2.5.1
+scikit-learn==1.5.2
+spacy==3.8.2
+nltk==3.9.1
+textstat==0.7.4
+pandas==2.2.3
+numpy==2.1.2
+
+# Optional for model tokenization and data processing
+sentencepiece==0.2.0

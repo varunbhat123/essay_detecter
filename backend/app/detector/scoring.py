@@ -67,11 +67,11 @@ class SentenceScorer:
         return min(1.0, (value - 0.8) / 0.25)
 
     def _risk_for_readability(self, value: float) -> float:
-        if 30.0 <= value <= 80.0:
+        if 45.0 <= value <= 70.0:
             return 0.0
-        if value < 30.0:
-            return min(1.0, (30.0 - value) / 22.0)
-        return min(1.0, (value - 80.0) / 30.0)
+        if value < 45.0:
+            return min(1.0, (45.0 - value) / 22.0)
+        return min(1.0, (value - 70.0) / 30.0)
 
     def _risk_for_entropy(self, entropy: float) -> float:
         if entropy <= 2.8:

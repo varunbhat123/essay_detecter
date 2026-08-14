@@ -1,101 +1,353 @@
-# AI Admissions Essay Detector
+# AI Detector for Admissions Essays
 
-An explainable, full-stack prototype for reviewing linguistic signals in admissions essays. It estimates an AI-likelihood score from text features and local language-model perplexity; it does not prove that an essay was written by AI and should not be used as the sole basis for high-stakes decisions.
+An AI-assisted admissions essay analysis application that evaluates
+essay text and provides an estimated AI-generation likelihood.
 
-## Main features
+## Tech Stack
 
-- Essay input and sentence-level highlighting in a Next.js interface.
-- FastAPI endpoints for essay analysis, detection, health checks, and dataset evaluation.
-- Explainable linguistic features, including lexical diversity, repetition, transitions, readability, entropy, burstiness, and sentence complexity.
-- Local GPT-2 perplexity as one signal in a heuristic score.
-- Dataset building and evaluation utilities for labeled human and AI text samples.
+-   Frontend: Next.js 15 + React + TypeScript
+-   Backend: Python + FastAPI + Uvicorn
+-   Detection: feature-based scoring and ML-oriented text analysis
+-   API: REST
 
-## Technology stack
+> **Important:** This detector provides a heuristic AI-likelihood
+> signal. It is not definitive proof of AI or human authorship.
 
-- Frontend: Next.js 15, React 19, TypeScript, Tailwind CSS.
-- Backend: Python, FastAPI, Pydantic, Uvicorn.
-- NLP and evaluation: Transformers, PyTorch, scikit-learn, spaCy, NLTK, textstat, pandas, and NumPy.
+## Project Structure
 
-## Architecture
-
-The `frontend/` application collects essay text and calls the backend API. The `backend/` FastAPI application extracts sentence and essay features, calculates GPT-2 perplexity, applies the heuristic scoring engine, and returns an overall result with sentence highlights. Dataset utilities build labeled splits and the evaluator reports classification metrics for a supplied dataset.
-
-## Backend setup
-
-Use a supported Python environment (Python 3.12 is the available local development version):
-
-```bash
-cd backend
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+``` text
+AI-detector-for-admissions-essays-1/
+├── backend/
+│   ├── app/
+│   │   └── main.py
+│   ├── scoring.py
+│   ├── detect.py
+│   ├── analysis_service.py
+│   ├── feature_extractor.py
+│   ├── perplexity.py
+│   └── build_dataset.py
+├── frontend/
+│   ├── app/
+│   ├── components/
+│   ├── features/
+│   ├── lib/
+│   ├── public/
+│   └── package.json
+├── data/
+├── models/
+├── tests/
+├── Architecture.md
+├── Dataset.md
+├── Limitations.md
+└── README.md
 ```
 
-Optional settings are documented in `backend/.env.example`. On first use, Transformers may download the GPT-2 model into its local cache.
+## Requirements
 
-## Frontend setup
+-   Python 3.12
+-   Node.js
+-   npm
+-   Git
+-   VS Code (recommended)
 
-```bash
+## 1. Clone
+
+``` bash
+git clone <YOUR_GITHUB_REPOSITORY_URL>
+cd AI-detector-for-admissions-essays-1
+```
+
+## 2. Backend Setup
+
+From the project root:
+
+``` bash
+python3 -m venv .venv-mac
+source .venv-mac/bin/activate
+```
+
+If `.venv-mac` already exists:
+
+``` bash
+source .venv-mac/bin/activate
+```
+
+Install backend dependencies:
+
+``` bash
+pip install -r requirements.txt
+```
+
+If `requirements.txt` is not present, install the core packages:
+
+``` bash
+pip install fastapi uvicorn pydantic pandas numpy scikit-learn textstat pytest
+```
+
+Start FastAPI:
+
+``` bash
+cd backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8765
+```
+
+Backend:
+
+``` text
+http://127.0.0.1:8765
+```
+
+Swagger:
+
+``` text
+http://127.0.0.1:8765/docs
+```
+
+OpenAPI:
+
+``` text
+http://127.0.0.1:8765/openapi.json
+```
+
+## 3. Frontend Setup
+
+Open a second terminal:
+
+``` bash
+cd frontend
+npm install
+```
+
+If an environment template exists:
+
+``` bash
+cp .env.example .env.local
+```
+
+Configure the frontend API URL to use:
+
+``` text
+http://127.0.0.1:8765
+```
+
+Start Next.js:
+
+``` bash
+npm run dev
+```
+
+Frontend:
+
+``` text
+http://localhost:3000
+```
+
+## 4. Run the Full Application
+
+### Terminal 1 --- Backend
+
+``` bash
+source .venv-mac/bin/activate
+cd backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8765
+```
+
+### Terminal 2 --- Frontend
+
+``` bash
+cd frontend
+npm run dev
+```
+
+Then open:
+
+``` text
+http://localhost:3000
+```
+
+Both servers must be running for essay analysis to work.
+
+## 5. API Endpoints
+
+  Method   Endpoint          Purpose
+  -------- ----------------- --------------------
+  GET      `/`               API root
+  GET      `/api/health`     Health check
+  POST     `/api/analyze`    Essay analysis
+  POST     `/api/detect`     AI detection
+  POST     `/api/evaluate`   Dataset evaluation
+
+### Example detection request
+
+``` bash
+curl -X POST http://127.0.0.1:8765/api/detect   -H "Content-Type: application/json"   -d '{"essay":"I have always been fascinated by computer science. Building my first small application taught me how technology can solve real problems."}'
+```
+
+The response includes:
+
+-   `overall_score`
+-   `prediction`
+-   `confidence`
+-   `summary`
+-   `status`
+-   `sentence_highlights`
+
+Sentence-level analysis can include:
+
+-   AI likelihood
+-   confidence
+-   classification status
+-   reasons
+-   perplexity
+-   burstiness
+-   vocabulary diversity
+-   readability
+-   entropy
+-   repeated phrase ratio
+-   transition frequency
+-   sentence complexity
+-   lexical richness
+
+## 6. Application Flow
+
+``` text
+Essay entered by user
+        ↓
+Next.js frontend
+        ↓
+POST /api/detect
+        ↓
+FastAPI backend
+        ↓
+Text / feature analysis
+        ↓
+Scoring engine
+        ↓
+Overall + sentence-level result
+        ↓
+Frontend displays prediction
+```
+
+## 7. Testing
+
+Backend tests:
+
+``` bash
+pytest
+```
+
+Frontend production build:
+
+``` bash
+cd frontend
+npm run build
+```
+
+Before committing, verify both backend tests and frontend build
+successfully.
+
+## 8. Git / GitHub
+
+Do **not** commit:
+
+``` text
+.venv/
+.venv-mac/
+__pycache__/
+.pytest_cache/
+.next/
+node_modules/
+.env
+.env.local
+```
+
+Commit:
+
+-   source code
+-   `requirements.txt`
+-   `package.json`
+-   `package-lock.json`
+-   configuration templates such as `.env.example`
+-   tests
+-   documentation
+-   required model artifacts
+
+The repository should be reproducible without uploading local virtual
+environments or dependency folders.
+
+## 9. Troubleshooting
+
+### Port 8765 already in use
+
+``` bash
+lsof -i :8765
+```
+
+Stop the old backend process, then start Uvicorn again.
+
+### Port 3000 already in use
+
+``` bash
+lsof -i :3000
+```
+
+Stop the old Next.js process or use the port automatically selected by
+Next.js.
+
+### Frontend says `Failed to fetch`
+
+1.  Confirm the backend is running.
+2.  Open `http://127.0.0.1:8765/docs`.
+3.  Check `.env.local`.
+4.  Confirm the frontend points to `http://127.0.0.1:8765`.
+5.  Restart the frontend after environment changes.
+
+## 10. Documentation
+
+-   `Architecture.md` --- system architecture
+-   `Dataset.md` --- dataset information
+-   `Limitations.md` --- detector limitations
+
+## 11. Detection Limitations
+
+AI detection is probabilistic. Human writing can resemble AI-generated
+writing, and AI-generated writing can resemble human writing.
+
+Results can vary with:
+
+-   essay length
+-   writing style
+-   vocabulary
+-   sentence structure
+-   paraphrasing
+-   readability
+-   model-generated text style
+
+The detector should therefore be used as a screening/support tool and
+not as the sole basis for an admissions decision.
+
+## 12. Quick Start
+
+``` bash
+# Terminal 1
+source .venv-mac/bin/activate
+cd backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8765
+```
+
+``` bash
+# Terminal 2
 cd frontend
 npm install
 npm run dev
 ```
 
-The frontend reads `NEXT_PUBLIC_API_BASE_URL` from `frontend/.env.local` and defaults to `http://localhost:8000`.
+Open:
 
-## API endpoints
-
-- `GET /` — service metadata.
-- `GET /api/health` — health check.
-- `POST /api/detect` — full detection response with sentence highlights. Request body: `{ "essay": "..." }`.
-- `POST /api/analyze` — summary analysis. Request body: `{ "essay": "..." }`.
-- `POST /api/evaluate` — evaluates a supplied labeled dataset directory.
-
-## Detection approach
-
-The detector is a heuristic, not a trained binary classifier. It extracts sentence-level features, computes local GPT-2 perplexity, combines normalized signals with fixed weights, classifies each sentence as `likely_human`, `suspicious`, or `likely_ai`, and averages sentence scores for the essay-level score. Results are signals for review, not authorship determinations.
-
-## Dataset information
-
-The dataset builder expects source samples under `backend/dataset/human/` and `backend/dataset/ai/`. It writes train, validation, and test CSV splits under `backend/dataset/splits/`.
-
-Run the builder from the backend directory:
-
-```bash
-python scripts/build_dataset.py
+``` text
+http://localhost:3000
 ```
 
-The evaluator accepts `.txt`, `.md`, and CSV inputs containing `text` and `source_label` fields. Root-level `data/` and `models/` directories are retained for local artifacts; `.gitkeep` preserves them when empty.
+## License
 
-## Testing
-
-Backend tests are in `backend/tests/`. Install the test runner in the active backend environment, then run:
-
-```bash
-cd backend
-pip install pytest
-pytest tests/
-```
-
-The frontend provides linting and build scripts:
-
-```bash
-cd frontend
-npm run lint
-npm run build
-```
-
-## Current limitations
-
-- The scoring thresholds and weights have not been validated as an admissions-grade detector.
-- Perplexity and style signals can produce false positives and false negatives.
-- Results depend on representative, accurately labeled evaluation data.
-- The current implementation is not a substitute for privacy, policy, legal, or human-review processes.
-
-## Future improvements
-
-- Validate and calibrate the scoring approach on held-out datasets.
-- Add supervised models only after establishing robust dataset and evaluation practices.
-- Improve dataset validation, error reporting, and evaluation metrics.
-- Add performance safeguards, privacy controls, and audit capabilities before production use.
+Add the project's chosen license here before public distribution.

@@ -1,4 +1,4 @@
 export const appConfig = {
-  apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000",
+  apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8765",
   appName: process.env.NEXT_PUBLIC_APP_NAME ?? "AI Essay Detector",
 };

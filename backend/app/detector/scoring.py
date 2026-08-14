@@ -11,6 +11,7 @@ from app.utils.perplexity import LocalPerplexityCalculator
 class SentenceDecision:
     sentence: str
     score: float
+    perplexity: float = 0.0
     reasons: list[str] = field(default_factory=list)
 
 
@@ -38,62 +39,138 @@ class SentenceScorer:
         return (clipped - low) / (high - low)
 
     def _determine_status(self, score: float) -> str:
-        if score >= 0.7:
+        if score >= 0.6:
             return "likely_ai"
-        if score >= 0.4:
+        if score >= 0.35:
             return "suspicious"
         return "likely_human"
 
+    def _risk_for_perplexity(self, perplexity: float) -> float:
+        if perplexity <= 70.0:
+            return 0.0
+        if perplexity >= 160.0:
+            return 1.0
+        return (perplexity - 70.0) / 90.0
+
+    def _risk_for_burstiness(self, burstiness: float) -> float:
+        if burstiness <= 0.4:
+            return 0.0
+        if burstiness >= 1.1:
+            return 1.0
+        return (burstiness - 0.4) / 0.7
+
+    def _risk_for_vocabulary(self, value: float) -> float:
+        if 0.45 <= value <= 0.8:
+            return 0.0
+        if value < 0.45:
+            return min(1.0, (0.45 - value) / 0.2)
+        return min(1.0, (value - 0.8) / 0.25)
+
+    def _risk_for_readability(self, value: float) -> float:
+        if 30.0 <= value <= 80.0:
+            return 0.0
+        if value < 30.0:
+            return min(1.0, (30.0 - value) / 22.0)
+        return min(1.0, (value - 80.0) / 30.0)
+
+    def _risk_for_entropy(self, entropy: float) -> float:
+        if entropy <= 2.8:
+            return 0.0
+        if entropy >= 3.8:
+            return 1.0
+        return (entropy - 2.8) / 1.0
+
+    def _risk_for_repeated_phrase(self, value: float) -> float:
+        if value <= 0.02:
+            return 0.0
+        if value >= 0.12:
+            return 1.0
+        return (value - 0.02) / 0.10
+
+    def _risk_for_transition_words(self, value: float) -> float:
+        if value <= 0.01:
+            return 0.0
+        if value >= 0.08:
+            return 1.0
+        return (value - 0.01) / 0.07
+
+    def _risk_for_complexity(self, value: float) -> float:
+        if value <= 1.1:
+            return 0.0
+        if value >= 1.5:
+            return 1.0
+        return (value - 1.1) / 0.4
+
+    def _risk_for_lexical_richness(self, value: float) -> float:
+        if value <= 1.05:
+            return 0.0
+        if value >= 1.30:
+            return 1.0
+        return (value - 1.05) / 0.25
+
+    def _risk_for_passive_voice(self, count: int) -> float:
+        if count <= 0:
+            return 0.0
+        if count >= 2:
+            return 1.0
+        return 0.7
+
     def score_sentence(self, sentence: str, features: SentenceFeature) -> SentenceDecision:
-        perplexity = self.perplexity_calculator.score_sentence(sentence).perplexity
+        perplexity_result = self.perplexity_calculator.score_sentence(sentence)
+        perplexity = perplexity_result.perplexity
 
         reasons: list[str] = []
         weighted_signals: list[tuple[float, float]] = []
 
-        perplexity_score = self._score_component(perplexity, 0.0, 200.0)
-        weighted_signals.append((perplexity_score, 0.22))
-        if perplexity > 120:
-            reasons.append("High perplexity relative to reference language patterns")
+        perplexity_risk = self._risk_for_perplexity(perplexity)
+        weighted_signals.append((perplexity_risk, 0.04))
+        if perplexity_risk > 0.6:
+            reasons.append("Perplexity is unusually high for this text style")
 
-        burstiness_score = self._score_component(features.burstiness, 0.0, 1.5)
-        weighted_signals.append((burstiness_score, 0.12))
-        if features.burstiness > 0.7:
-            reasons.append("Unusual repetition burst pattern")
+        burstiness_risk = self._risk_for_burstiness(features.burstiness)
+        weighted_signals.append((burstiness_risk, 0.04))
+        if burstiness_risk > 0.6:
+            reasons.append("Burstiness pattern is unusually irregular")
 
-        vocab_score = self._score_component(features.vocabulary_diversity, 0.0, 1.0)
-        weighted_signals.append((vocab_score, 0.10))
-        if features.vocabulary_diversity > 0.75:
-            reasons.append("Strong vocabulary diversity")
+        vocab_risk = self._risk_for_vocabulary(features.vocabulary_diversity)
+        weighted_signals.append((vocab_risk, 0.04))
+        if vocab_risk > 0.6:
+            reasons.append("Vocabulary range is unusually extreme for a typical essay")
 
-        readability_score = max(0.0, 1.0 - min(1.0, abs(features.readability_score - 60.0) / 80.0))
-        weighted_signals.append((readability_score, 0.10))
-        if features.readability_score < 40:
-            reasons.append("Readability is unusually constrained or dense")
+        readability_risk = self._risk_for_readability(features.readability_score)
+        weighted_signals.append((readability_risk, 0.32))
+        if readability_risk > 0.6:
+            reasons.append("Readability deviates sharply from a typical academic range")
 
-        entropy_score = self._score_component(features.entropy, 0.0, 4.0)
-        weighted_signals.append((entropy_score, 0.08))
-        if features.entropy > 2.8:
-            reasons.append("High token unpredictability")
+        entropy_risk = self._risk_for_entropy(features.entropy)
+        weighted_signals.append((entropy_risk, 0.06))
+        if entropy_risk > 0.6:
+            reasons.append("Token unpredictability is elevated")
 
-        repeated_phrase_score = self._score_component(features.repeated_phrase_ratio, 0.0, 0.5)
-        weighted_signals.append((repeated_phrase_score, 0.10))
-        if features.repeated_phrase_ratio > 0.15:
-            reasons.append("Repeated phrase pattern detected")
+        repeated_phrase_risk = self._risk_for_repeated_phrase(features.repeated_phrase_ratio)
+        weighted_signals.append((repeated_phrase_risk, 0.12))
+        if repeated_phrase_risk > 0.6:
+            reasons.append("Repeated phrase pattern is elevated")
 
-        transition_score = self._score_component(features.transition_word_frequency, 0.0, 0.4)
-        weighted_signals.append((transition_score, 0.08))
-        if features.transition_word_frequency > 0.1:
-            reasons.append("Transition wording is elevated")
+        transition_risk = self._risk_for_transition_words(features.transition_word_frequency)
+        weighted_signals.append((transition_risk, 0.16))
+        if transition_risk > 0.6:
+            reasons.append("Transition wording is unusually frequent")
 
-        rhythm_score = self._score_component(features.sentence_complexity, 0.0, 3.0)
-        weighted_signals.append((rhythm_score, 0.10))
-        if features.sentence_complexity > 1.4:
-            reasons.append("Sentence rhythm is unusually patterned or complex")
+        complexity_risk = self._risk_for_complexity(features.sentence_complexity)
+        weighted_signals.append((complexity_risk, 0.08))
+        if complexity_risk > 0.6:
+            reasons.append("Sentence rhythm is unusually patterned")
 
-        lexical_score = self._score_component(features.lexical_richness, 0.0, 1.0)
-        weighted_signals.append((lexical_score, 0.10))
-        if features.lexical_richness > 0.7:
-            reasons.append("Lexical richness is elevated")
+        lexical_risk = self._risk_for_lexical_richness(features.lexical_richness)
+        weighted_signals.append((lexical_risk, 0.10))
+        if lexical_risk > 0.6:
+            reasons.append("Lexical profile is unusually formulaic or compressed")
+
+        passive_risk = self._risk_for_passive_voice(features.passive_voice_count)
+        weighted_signals.append((passive_risk, 0.12))
+        if passive_risk > 0.6:
+            reasons.append("Passive voice is unusually frequent for this sentence")
 
         total_weight = sum(weight for _, weight in weighted_signals)
         combined_score = sum(signal * weight for signal, weight in weighted_signals) / total_weight if total_weight else 0.0
@@ -102,13 +179,13 @@ class SentenceScorer:
         if not reasons:
             reasons.append("No strong anomaly signal detected in this sentence")
 
-        return SentenceDecision(sentence=sentence, score=score, reasons=reasons[:3])
+        return SentenceDecision(sentence=sentence, score=score, perplexity=perplexity, reasons=reasons[:3])
 
     def to_highlight(self, sentence_decision: SentenceDecision, features: SentenceFeature) -> SentenceHighlight:
         status = self._determine_status(sentence_decision.score)
         confidence = max(0.0, min(1.0, sentence_decision.score))
         extracted_features = {
-            "perplexity": round(features.readability_score, 4),
+            "perplexity": round(sentence_decision.perplexity, 4),
             "burstiness": round(features.burstiness, 4),
             "vocabulary_diversity": round(features.vocabulary_diversity, 4),
             "readability_score": round(features.readability_score, 4),

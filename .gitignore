@@ -1,18 +1,52 @@
 # Node / Next.js
+node_modules/
 frontend/node_modules/
 frontend/.next/
 frontend/out/
-frontend/.env
+*.tsbuildinfo
+
+# Python environments and build artifacts
+.venv/
+.venv-mac/
+venv/
+ENV/
+env/
+backend/.venv/
+backend/.venv-macos/
+__pycache__/
+backend/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+
+# Testing and tooling
+.pytest_cache/
+backend/.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Environment files and local secrets
+.env
+.env.*
+!.env.example
 frontend/.env.local
 frontend/.env.*.local
 
-# Python / FastAPI
-backend/.venv/
-backend/__pycache__/
-backend/**/*.pyc
-backend/.env
-backend/.pytest_cache/
-
-# General
+# IDE and operating-system files
+.vscode/
+.idea/
 .DS_Store
 Thumbs.db
+
+# Local datasets and model artifacts
+data/*
+!data/.gitkeep
+models/*
+!models/.gitkeep
+!models/model.pkl

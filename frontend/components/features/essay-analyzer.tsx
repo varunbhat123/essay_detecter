@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
 import { Textarea } from "@/components/ui/textarea";
+import { appConfig } from "@/lib/config";
 
 const SAMPLE_ESSAY = `As a young student, I have always believed in the power of curiosity and resilience. Throughout my academic journey, I have approached every challenge with determination, learning not only from success but also from setbacks. My interest in computer science grew from a desire to understand how technology can solve meaningful problems in society. I have spent countless hours building projects, collaborating with peers, and exploring new ideas that push me beyond my comfort zone. Each experience has strengthened my commitment to creating innovative solutions that improve lives.`;
 
@@ -15,9 +16,17 @@ export function EssayAnalyzer() {
     prediction: string;
     confidence: number;
     summary: string;
-    style: string;
-    originality: string;
+    status: string;
+    sentenceHighlights: Array<{
+      sentence: string;
+      score: number;
+      confidence: number;
+      status: string;
+      reasons: string[];
+      extracted_features: Record<string, number | string>;
+    }>;
   } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const wordCount = useMemo(() => {
     const trimmed = essayText.trim();
@@ -27,20 +36,38 @@ export function EssayAnalyzer() {
 
   const charCount = essayText.length;
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     setIsLoading(true);
+    setError(null);
 
-    setTimeout(() => {
-      setResult({
-        prediction: "Likely Human Written",
-        confidence: 92,
-        summary:
-          "The essay demonstrates strong personal voice, contextual depth, and coherent narrative structure associated with authentic student writing.",
-        style: "Academic and reflective",
-        originality: "Strong personal framing",
+    try {
+      const response = await fetch(`${appConfig.apiBaseUrl}/api/detect`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ essay: essayText }),
       });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.detail || "Failed to analyze essay. Please try again.");
+      }
+
+      const payload = await response.json();
+      setResult({
+        prediction: payload.prediction,
+        confidence: Math.round((payload.confidence ?? 0) * 100),
+        summary: payload.summary,
+        status: payload.status,
+        sentenceHighlights: payload.sentence_highlights ?? [],
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unexpected error while analyzing.");
+      setResult(null);
+    } finally {
       setIsLoading(false);
-    }, 1400);
+    }
   };
 
   return (
@@ -115,20 +142,26 @@ export function EssayAnalyzer() {
               </p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-3">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Style signal</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Status</p>
               <p className="mt-2 text-sm text-slate-200">
-                {result ? result.style : "Waiting for analysis"}
+                {result ? result.status : "Waiting for analysis"}
               </p>
             </div>
           </div>
         </aside>
       </div>
 
+      {error ? (
+        <div className="mt-6 rounded-3xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-100">
+          <strong>Error:</strong> {error}
+        </div>
+      ) : null}
+
       <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Language" value="Academic" detail="Consistent tone and structure" tone="cyan" />
-        <StatCard label="Originality" value={result ? result.originality : "Evaluating"} detail="Identity signals" tone="purple" />
-        <StatCard label="Complexity" value="Balanced" detail="Sentence variety and flow" tone="amber" />
-        <StatCard label="Risk" value={result ? "Low" : "Pending"} detail="AI generation likelihood" tone="emerald" />
+        <StatCard label="Prediction" value={result ? result.prediction : "Pending"} detail="Overall detection result" tone="cyan" />
+        <StatCard label="Confidence" value={result ? `${result.confidence}%` : "--"} detail="AI likelihood confidence" tone="purple" />
+        <StatCard label="Words" value={String(wordCount)} detail="Essay word count" tone="amber" />
+        <StatCard label="Risk" value={result ? (result.confidence >= 70 ? "High" : result.confidence >= 40 ? "Medium" : "Low") : "Pending"} detail="AI generation likelihood" tone="emerald" />
       </section>
 
       <section className="mt-8 rounded-3xl border border-white/10 bg-slate-900/80 p-4 shadow-[0_0_24px_rgba(15,23,42,0.85)] backdrop-blur-xl sm:p-6">
@@ -141,25 +174,32 @@ export function EssayAnalyzer() {
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-          <p className="whitespace-pre-wrap leading-8 text-slate-200">
-            {essayText.split(/\s+/).map((word, index) => {
-              const normalized = word.toLowerCase();
-              let toneClass = "";
+          <p className="whitespace-pre-wrap leading-8 text-slate-200 cursor-default">
+            {result && result.sentenceHighlights.length > 0 ? (
+              result.sentenceHighlights.map((highlight, index) => {
+                let toneClass = "text-slate-200";
+                
+                if (highlight.status === "likely_ai") {
+                  toneClass = "bg-rose-500/20 text-rose-200 ring-1 ring-rose-500/30";
+                } else if (highlight.status === "suspicious") {
+                  toneClass = "bg-amber-500/20 text-amber-200 ring-1 ring-amber-500/30";
+                } else if (highlight.status === "likely_human") {
+                  toneClass = "bg-emerald-500/20 text-emerald-200 ring-1 ring-emerald-500/30";
+                }
 
-              if (normalized.includes("experience") || normalized.includes("journey") || normalized.includes("passion")) {
-                toneClass = "bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-500/30";
-              } else if (normalized.includes("technology") || normalized.includes("society") || normalized.includes("innovative")) {
-                toneClass = "bg-violet-500/20 text-violet-200 ring-1 ring-violet-500/30";
-              } else if (normalized.includes("challenge") || normalized.includes("resilience") || normalized.includes("commitment")) {
-                toneClass = "bg-emerald-500/20 text-emerald-200 ring-1 ring-emerald-500/30";
-              }
-
-              return (
-                <span key={`${word}-${index}`} className={`rounded px-1 py-0.5 ${toneClass}`}>
-                  {word}{" "}
-                </span>
-              );
-            })}
+                return (
+                  <span
+                    key={`sentence-${index}`}
+                    className={`rounded px-1 py-0.5 mx-0.5 transition-colors duration-200 ${toneClass}`}
+                    title={`Score: ${highlight.score} | Reasons: ${highlight.reasons.join(", ")}`}
+                  >
+                    {highlight.sentence}{" "}
+                  </span>
+                );
+              })
+            ) : (
+              essayText
+            )}
           </p>
         </div>
       </section>

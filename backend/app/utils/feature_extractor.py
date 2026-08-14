@@ -93,7 +93,16 @@ def _compute_transition_word_frequency(sentence: str) -> float:
 
 
 def _count_passive_voice(sentence: str) -> int:
-    matches = re.findall(r"\b(?:am|is|are|was|were|be|been|being)\s+\w+\s+ed\b|\b(?:am|is|are|was|were|be|been|being)\s+\w+\s+en\b", sentence.lower())
+    irregular_participles = (
+        "thrown|made|known|given|built|found|left|seen|done|shown|told|kept|written|taken|"
+        "brought|chosen|driven|spoken|hidden|fed|led|felt|held|sold|taught|caught|paid|said"
+    )
+    pattern = (
+        r"\b(?:am|is|are|was|were|be|been|being)\b"
+        r"(?:\s+\w+){0,2}\s+"
+        rf"(?:\w+(?:ed|en)|(?:{irregular_participles}))\b"
+    )
+    matches = re.findall(pattern, sentence.lower())
     return len(matches)
 
 

@@ -1,5 +1,16 @@
+import os
+import sys
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# When running from the repository root, ensure the backend package is importable.
+if os.getcwd().endswith("backend"):
+    package_root = os.getcwd()
+else:
+    package_root = os.path.join(os.getcwd(), "backend")
+if package_root not in sys.path:
+    sys.path.insert(0, package_root)
 
 from app.core.config import settings
 from app.routes.analyze import router as analyze_router
